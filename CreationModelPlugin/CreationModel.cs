@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
@@ -30,6 +31,11 @@ namespace CreationModelPlugin
             //Создание стеновой коробки
             List<Wall> walls = CreateWallBox(doc, wallLength, wallWidth, wallBaseLevelName, wallTopConstraintLevelName, false);
 
+            //Создание двери
+            AddDoor(doc, walls[0]);
+            //AddDoor(doc, wallBaseLevelName, walls[0]);
+
+
             #endregion
 
             return Result.Succeeded;
@@ -37,6 +43,39 @@ namespace CreationModelPlugin
 
 
         #region Методы построения
+
+        //Метод добавления двери предопределенного типа в указанную стену на указанном уровне
+        private void AddDoor(Document doc, Wall wall)
+        //private void AddDoor(Document doc, string levelName, Wall wall)
+        {
+            FamilySymbol doorType = new FilteredElementCollector(doc)
+                 .OfClass(typeof(FamilySymbol))
+                 .OfCategory(BuiltInCategory.OST_Doors)
+                 .OfType<FamilySymbol>()
+                 .Where(x => x.Name.Equals("0915 x 2134 мм"))
+                 .Where(x => x.FamilyName.Equals("Одиночные-Щитовые"))
+                 .FirstOrDefault();
+
+            
+            Level level = GetLevelById(doc, wall.LevelId);
+            //Level level = GetLevelByName(doc, levelName);
+            LocationCurve hostCurve = wall.Location as LocationCurve;
+            XYZ point1 = hostCurve.Curve.GetEndPoint(0);
+            XYZ point2 = hostCurve.Curve.GetEndPoint(1);
+            XYZ point = (point1 + point2) / 2;
+
+            Transaction transaction = new Transaction(doc, "Create door");
+            transaction.Start();
+
+            if (!doorType.IsActive)
+                doorType.Activate();
+
+            doc.Create.NewFamilyInstance(point, doorType, wall, level, StructuralType.NonStructural);
+
+            transaction.Commit();
+        }
+
+
 
         //Метод построения стеновой коробки (прямоугольник на плане)
         public List<Wall> CreateWallBox(Document doc, double length, double width, string levelName, string topConstraintLevel, bool structural)
@@ -72,6 +111,18 @@ namespace CreationModelPlugin
                 .ToList();
             Level level = levels
                 .Where(x => x.Name.Equals(name))
+                .FirstOrDefault();
+            return level;
+        }
+
+        public Level GetLevelById(Document doc, ElementId id)
+        {
+            List<Level> levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .OfType<Level>()
+                .ToList();
+            Level level = levels
+                .Where(x => x.Id.Equals(id))
                 .FirstOrDefault();
             return level;
         }
