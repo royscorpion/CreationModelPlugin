@@ -17,10 +17,11 @@ namespace CreationModelPlugin
         {
             Document doc = commandData.Application.ActiveUIDocument.Document;
 
-            #region Исходные данные для построения
+            #region Исходные данные для построения. Все размеры - [мм].
 
             double wallLength = 10000;
             double wallWidth = 5000;
+            double windowSillHeight = 500;
             string wallBaseLevelName = "Уровень 1";
             string wallTopConstraintLevelName = "Уровень 2";
 
@@ -35,10 +36,43 @@ namespace CreationModelPlugin
             AddDoor(doc, walls[0]);
             //AddDoor(doc, wallBaseLevelName, walls[0]);
 
+            //Создание окон
+            AddWindows(doc, walls.GetRange(1, 3), windowSillHeight);
 
             #endregion
 
             return Result.Succeeded;
+        }
+
+        private void AddWindows(Document doc, List<Wall> walls, double sillHeight)
+        {
+            FamilySymbol windowType = new FilteredElementCollector(doc)
+                 .OfClass(typeof(FamilySymbol))
+                 .OfCategory(BuiltInCategory.OST_Windows)
+                 .OfType<FamilySymbol>()
+                 .Where(x => x.Name.Equals("0915 x 1830 мм"))
+                 .Where(x => x.FamilyName.Equals("Фиксированные"))
+                 .FirstOrDefault();
+
+            sillHeight = UnitUtils.ConvertToInternalUnits(sillHeight, UnitTypeId.Millimeters);
+
+            Transaction transaction = new Transaction(doc, "Create windows");
+            transaction.Start();
+            if (!windowType.IsActive)
+                windowType.Activate();
+            for (int i = 0; i < walls.Count; i++)
+            {
+                Level level = GetLevelById(doc, walls[i].LevelId);
+                LocationCurve hostCurve = walls[i].Location as LocationCurve;
+                XYZ point1 = hostCurve.Curve.GetEndPoint(0);
+                XYZ point2 = hostCurve.Curve.GetEndPoint(1);
+                XYZ point = (point1 + point2) / 2;
+
+                FamilyInstance window = doc.Create.NewFamilyInstance(point, windowType, walls[i], level, StructuralType.NonStructural);
+                window.get_Parameter(BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM).Set(sillHeight);
+
+            }
+            transaction.Commit();
         }
 
 
@@ -56,7 +90,7 @@ namespace CreationModelPlugin
                  .Where(x => x.FamilyName.Equals("Одиночные-Щитовые"))
                  .FirstOrDefault();
 
-            
+
             Level level = GetLevelById(doc, wall.LevelId);
             //Level level = GetLevelByName(doc, levelName);
             LocationCurve hostCurve = wall.Location as LocationCurve;
