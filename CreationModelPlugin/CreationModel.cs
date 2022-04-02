@@ -19,11 +19,11 @@ namespace CreationModelPlugin
 
             #region Исходные данные для построения. Все размеры - [мм].
 
-            double wallLength = 10000;
-            double wallWidth = 5000;
-            double windowSillHeight = 500;
-            string wallBaseLevelName = "Уровень 1";
-            string wallTopConstraintLevelName = "Уровень 2";
+            double wallLength = 10000; // длина стеновой коробки
+            double wallWidth = 5000; // ширина стеновой коробки
+            double windowSillHeight = 500; // высота подоконника
+            string wallBaseLevelName = "Уровень 1"; // наименование базового уровня стен
+            string wallTopConstraintLevelName = "Уровень 2"; // наименование уровня ограничивающего высоту стен сверху
 
             #endregion
 
@@ -34,7 +34,6 @@ namespace CreationModelPlugin
 
             //Создание двери
             AddDoor(doc, walls[0]);
-            //AddDoor(doc, wallBaseLevelName, walls[0]);
 
             //Создание окон
             AddWindows(doc, walls.GetRange(1, 3), windowSillHeight);
@@ -44,6 +43,11 @@ namespace CreationModelPlugin
             return Result.Succeeded;
         }
 
+
+
+        #region Методы построения
+
+        //Метод добавления окон предопределенного типа в стены из списка, с назначением высоты подоконника
         private void AddWindows(Document doc, List<Wall> walls, double sillHeight)
         {
             FamilySymbol windowType = new FilteredElementCollector(doc)
@@ -76,11 +80,8 @@ namespace CreationModelPlugin
         }
 
 
-        #region Методы построения
-
-        //Метод добавления двери предопределенного типа в указанную стену на указанном уровне
+        //Метод добавления двери предопределенного типа в указанную стену
         private void AddDoor(Document doc, Wall wall)
-        //private void AddDoor(Document doc, string levelName, Wall wall)
         {
             FamilySymbol doorType = new FilteredElementCollector(doc)
                  .OfClass(typeof(FamilySymbol))
@@ -92,7 +93,6 @@ namespace CreationModelPlugin
 
 
             Level level = GetLevelById(doc, wall.LevelId);
-            //Level level = GetLevelByName(doc, levelName);
             LocationCurve hostCurve = wall.Location as LocationCurve;
             XYZ point1 = hostCurve.Curve.GetEndPoint(0);
             XYZ point2 = hostCurve.Curve.GetEndPoint(1);
