@@ -1,4 +1,5 @@
-﻿using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.ApplicationServices;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
@@ -38,6 +39,8 @@ namespace CreationModelPlugin
             //Создание окон
             AddWindows(doc, walls.GetRange(1, 3), windowSillHeight);
 
+            AddRoof(doc, wallTopConstraintLevelName, walls);
+
             #endregion
 
             return Result.Succeeded;
@@ -45,7 +48,54 @@ namespace CreationModelPlugin
 
 
 
+
         #region Методы построения
+
+        //Метод создания крыши по контуру стен
+        private void AddRoof(Document doc, string levelName, List<Wall> walls)
+        {
+            RoofType roofType = new FilteredElementCollector(doc)
+                .OfClass(typeof(RoofType))
+                .OfType<RoofType>()
+                .Where(x => x.Name.Equals("Типовой - 400мм"))
+                .Where(x => x.FamilyName.Equals("Базовая крыша"))
+                .FirstOrDefault();
+
+            double dt = walls[0].Width/2;
+            //double dt = wallWidth / 2;
+            List<XYZ> points = new List<XYZ>();
+            points.Add(new XYZ(-dt, -dt, 0));
+            points.Add(new XYZ(dt, -dt, 0));
+            points.Add(new XYZ(dt, dt, 0));
+            points.Add(new XYZ(-dt, dt, 0));
+            points.Add(new XYZ(-dt, -dt, 0));
+
+            Level level = GetLevelByName(doc, levelName);
+
+            Transaction transaction = new Transaction(doc, "Create roof");
+            transaction.Start();
+
+            Application application = doc.Application;
+            CurveArray footprint = application.Create.NewCurveArray();
+            for (int i = 0; i < walls.Count; i++)
+            {
+                LocationCurve curve = walls[i].Location as LocationCurve;
+                XYZ p1 = curve.Curve.GetEndPoint(0);
+                XYZ p2 = curve.Curve.GetEndPoint(1);
+                Line line = Line.CreateBound(p1 + points[i], p2 + points[i + 1]);
+                footprint.Append(line);
+            }
+            ModelCurveArray footprintToModelCurveMapping = new ModelCurveArray();
+            FootPrintRoof footprintRoof = doc.Create.NewFootPrintRoof(footprint, level, roofType, out footprintToModelCurveMapping);
+            foreach (ModelCurve mc in footprintToModelCurveMapping)
+            {
+                footprintRoof.set_DefinesSlope(mc, true);
+                footprintRoof.set_SlopeAngle(mc, 0.5);
+            }
+            transaction.Commit();
+
+        }
+
 
         //Метод добавления окон предопределенного типа в стены из списка, с назначением высоты подоконника
         private void AddWindows(Document doc, List<Wall> walls, double sillHeight)
