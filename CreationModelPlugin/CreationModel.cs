@@ -23,6 +23,7 @@ namespace CreationModelPlugin
             double wallLength = 10000; // длина стеновой коробки
             double wallWidth = 5000; // ширина стеновой коробки
             double windowSillHeight = 500; // высота подоконника
+            double roofAngle = 30; // угол скатов крыши
             string wallBaseLevelName = "Уровень 1"; // наименование базового уровня стен
             string wallTopConstraintLevelName = "Уровень 2"; // наименование уровня ограничивающего высоту стен сверху
 
@@ -39,7 +40,8 @@ namespace CreationModelPlugin
             //Создание окон
             AddWindows(doc, walls.GetRange(1, 3), windowSillHeight);
 
-            AddRoof(doc, wallTopConstraintLevelName, walls);
+            //Создание крыши
+            AddRoof(doc, wallTopConstraintLevelName, walls, roofAngle);
 
             #endregion
 
@@ -52,7 +54,7 @@ namespace CreationModelPlugin
         #region Методы построения
 
         //Метод создания крыши по контуру стен
-        private void AddRoof(Document doc, string levelName, List<Wall> walls)
+        private void AddRoof(Document doc, string levelName, List<Wall> walls, double angle)
         {
             RoofType roofType = new FilteredElementCollector(doc)
                 .OfClass(typeof(RoofType))
@@ -60,9 +62,8 @@ namespace CreationModelPlugin
                 .Where(x => x.Name.Equals("Типовой - 400мм"))
                 .Where(x => x.FamilyName.Equals("Базовая крыша"))
                 .FirstOrDefault();
-
+            double slope = Math.Tan(angle * Math.PI / 180);
             double dt = walls[0].Width/2;
-            //double dt = wallWidth / 2;
             List<XYZ> points = new List<XYZ>();
             points.Add(new XYZ(-dt, -dt, 0));
             points.Add(new XYZ(dt, -dt, 0));
@@ -90,7 +91,7 @@ namespace CreationModelPlugin
             foreach (ModelCurve mc in footprintToModelCurveMapping)
             {
                 footprintRoof.set_DefinesSlope(mc, true);
-                footprintRoof.set_SlopeAngle(mc, 0.5);
+                footprintRoof.set_SlopeAngle(mc, slope);
             }
             transaction.Commit();
 
