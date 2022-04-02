@@ -72,8 +72,8 @@ namespace CreationModelPlugin
         //Метод получения точек углов прямоугольника по его длинам его сторон в миллиметрах (относительно центра прямоугольника)
         public List<XYZ> GetRectangleCornersBySizes(double a, double b)
         {
-            double dx = a / 2;
-            double dy = b / 2;
+            double dx = UnitUtils.ConvertToInternalUnits(a / 2, UnitTypeId.Millimeters);
+            double dy = UnitUtils.ConvertToInternalUnits(b / 2, UnitTypeId.Millimeters);
 
             List<XYZ> points = new List<XYZ>();
             points.Add(new XYZ(-dx, -dy, 0));
