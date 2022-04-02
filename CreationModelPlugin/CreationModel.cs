@@ -25,17 +25,24 @@ namespace CreationModelPlugin
 
             #endregion
 
+            #region Построение
+
             //Создание стеновой коробки
             List<Wall> walls = CreateWallBox(doc, wallLength, wallWidth, wallBaseLevelName, wallTopConstraintLevelName, false);
+
+            #endregion
 
             return Result.Succeeded;
         }
 
+
+        #region Методы построения
+
         //Метод построения стеновой коробки (прямоугольник на плане)
         public List<Wall> CreateWallBox(Document doc, double length, double width, string levelName, string topConstraintLevel, bool structural)
         {
-            Level level1 = GetLevel(doc, levelName);
-            Level level2 = GetLevel(doc, topConstraintLevel);
+            Level level1 = GetLevelByName(doc, levelName);
+            Level level2 = GetLevelByName(doc, topConstraintLevel);
 
             List<XYZ> points = GetRectangleCornersBySizes(length, width);
 
@@ -56,8 +63,8 @@ namespace CreationModelPlugin
 
         }
 
-        //Метод получения уровня по его имени
-        public Level GetLevel(Document doc, string name)
+        //Метод получения уровня по его наименованию
+        public Level GetLevelByName(Document doc, string name)
         {
             List<Level> levels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level))
@@ -69,7 +76,8 @@ namespace CreationModelPlugin
             return level;
         }
 
-        //Метод получения точек углов прямоугольника по его длинам его сторон в миллиметрах (относительно центра прямоугольника)
+        ///Метод получения точек углов прямоугольника (относительно центра прямоугольника) по его длинам его сторон, заданных в миллиметрах,
+        ///с конвертацией во внутренние единицы измерения
         public List<XYZ> GetRectangleCornersBySizes(double a, double b)
         {
             double dx = UnitUtils.ConvertToInternalUnits(a / 2, UnitTypeId.Millimeters);
@@ -84,5 +92,7 @@ namespace CreationModelPlugin
 
             return points;
         }
+
+        #endregion
     }
 }
