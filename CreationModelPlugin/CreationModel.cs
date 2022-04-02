@@ -9,37 +9,35 @@ using System.Threading.Tasks;
 
 namespace CreationModelPlugin
 {
-    [Transaction(TransactionMode.Manual)] 
-    public class CreationModel : IExternalCommand  
+    [Transaction(TransactionMode.Manual)]
+    public class CreationModel : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             Document doc = commandData.Application.ActiveUIDocument.Document;
 
-            List<Level> levels = new FilteredElementCollector(doc)
-                .OfClass(typeof(Level))
-                .OfType<Level>()
-                .ToList();
+            #region Исходные данные для построения
 
-            Level level1 = levels
-                .Where(x => x.Name.Equals("Уровень 1"))
-                .FirstOrDefault();
+            double wallLength = 10000;
+            double wallWidth = 5000;
+            string wallBaseLevelName = "Уровень 1";
+            string wallTopConstraintLevelName = "Уровень 2";
 
-            Level level2 = levels
-                .Where(x => x.Name.Equals("Уровень 2"))
-                .FirstOrDefault();
+            #endregion
 
-            double width = UnitUtils.ConvertToInternalUnits(10000, UnitTypeId.Millimeters);
-            double depth = UnitUtils.ConvertToInternalUnits(5000, UnitTypeId.Millimeters);
-            double dx = width / 2;
-            double dy = depth / 2;
+            //Создание стеновой коробки
+            List<Wall> walls = CreateWallBox(doc, wallLength, wallWidth, wallBaseLevelName, wallTopConstraintLevelName, false);
 
-            List<XYZ> points = new List<XYZ>();
-            points.Add(new XYZ(-dx, -dy, 0));
-            points.Add(new XYZ(dx, -dy, 0));
-            points.Add(new XYZ(dx, dy, 0));
-            points.Add(new XYZ(-dx, dy, 0));
-            points.Add(new XYZ(-dx, -dy, 0));
+            return Result.Succeeded;
+        }
+
+        //Метод построения стеновой коробки (прямоугольник на плане)
+        public List<Wall> CreateWallBox(Document doc, double length, double width, string levelName, string topConstraintLevel, bool structural)
+        {
+            Level level1 = GetLevel(doc, levelName);
+            Level level2 = GetLevel(doc, topConstraintLevel);
+
+            List<XYZ> points = GetRectangleCornersBySizes(length, width);
 
             List<Wall> walls = new List<Wall>();
 
@@ -48,14 +46,43 @@ namespace CreationModelPlugin
             for (int i = 0; i < 4; i++)
             {
                 Line line = Line.CreateBound(points[i], points[i + 1]);
-                Wall wall = Wall.Create(doc, line, level1.Id, false);
+                Wall wall = Wall.Create(doc, line, level1.Id, structural);
                 walls.Add(wall);
                 wall.get_Parameter(BuiltInParameter.WALL_HEIGHT_TYPE).Set(level2.Id);
             }
 
             transaction.Commit();
+            return walls;
 
-            return Result.Succeeded;
+        }
+
+        //Метод получения уровня по его имени
+        public Level GetLevel(Document doc, string name)
+        {
+            List<Level> levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .OfType<Level>()
+                .ToList();
+            Level level = levels
+                .Where(x => x.Name.Equals(name))
+                .FirstOrDefault();
+            return level;
+        }
+
+        //Метод получения точек углов прямоугольника по его длинам его сторон в миллиметрах (относительно центра прямоугольника)
+        public List<XYZ> GetRectangleCornersBySizes(double a, double b)
+        {
+            double dx = a / 2;
+            double dy = b / 2;
+
+            List<XYZ> points = new List<XYZ>();
+            points.Add(new XYZ(-dx, -dy, 0));
+            points.Add(new XYZ(dx, -dy, 0));
+            points.Add(new XYZ(dx, dy, 0));
+            points.Add(new XYZ(-dx, dy, 0));
+            points.Add(new XYZ(-dx, -dy, 0));
+
+            return points;
         }
     }
 }
