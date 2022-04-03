@@ -79,7 +79,7 @@ namespace CreationModelPlugin
             points.Add(new XYZ(dt, dt, 0));
             points.Add(new XYZ(-dt, dt, 0));
 
-            for (int i = 0; i < walls.Count; i++)
+            for (int i = 0; i < walls.Count; i++) //если заменить шаг на i=i+2, то крыша будет двухскатной
             {
                 double extrusionLength = (walls[i].Location as LocationCurve).Curve.Length + 2 * dt;
                 int j = (i != 0) ? i - 1 : walls.Count - 1;
