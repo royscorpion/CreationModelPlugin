@@ -22,9 +22,10 @@ namespace CreationModelPlugin
 
             double wallLength = 10000; // длина стеновой коробки
             double wallWidth = 5000; // ширина стеновой коробки
-            double windowSillHeight = 500; // высота подоконника
-            double roofAngle = 30; // угол скатов крыши
+            double windowSillHeight = 600; // высота подоконника
+            //double roofAngle = 30; // угол скатов крыши
             double roofHeight = 3000; //высота крыши до конька
+            double roofOverhang = 300; //свес кровли
             string wallBaseLevelName = "Уровень 1"; // наименование базового уровня стен
             string wallTopConstraintLevelName = "Уровень 2"; // наименование уровня ограничивающего высоту стен сверху
 
@@ -45,7 +46,7 @@ namespace CreationModelPlugin
             //AddRoof(doc, wallTopConstraintLevelName, walls, roofAngle);
 
             //Создание крыши выдавливанием
-            AddExtrusionRoof(doc, wallTopConstraintLevelName, walls, roofHeight);
+            AddExtrusionRoof(doc, wallTopConstraintLevelName, walls, roofHeight, roofOverhang);
 
             #endregion
 
@@ -57,7 +58,7 @@ namespace CreationModelPlugin
         #region Методы построения
 
         //Метод создания крыши выдавливанием
-        private void AddExtrusionRoof(Document doc, string levelName, List<Wall> walls, double roofHeight)
+        private void AddExtrusionRoof(Document doc, string levelName, List<Wall> walls, double roofHeight, double roofOverhang)
         {
             RoofType roofType = new FilteredElementCollector(doc)
                 .OfClass(typeof(RoofType))
@@ -69,7 +70,9 @@ namespace CreationModelPlugin
             Level level = GetLevelByName(doc, levelName);
 
             roofHeight = UnitUtils.ConvertToInternalUnits(roofHeight, UnitTypeId.Millimeters);
-            double dt = walls[0].Width / 2;
+            roofOverhang = UnitUtils.ConvertToInternalUnits(roofOverhang, UnitTypeId.Millimeters);
+
+            double dt = walls[0].Width / 2 + roofOverhang;
             List<XYZ> points = new List<XYZ>();
             points.Add(new XYZ(-dt, -dt, 0));
             points.Add(new XYZ(dt, -dt, 0));
