@@ -24,6 +24,7 @@ namespace CreationModelPlugin
             double wallWidth = 5000; // ширина стеновой коробки
             double windowSillHeight = 500; // высота подоконника
             double roofAngle = 30; // угол скатов крыши
+            double roofHeight = 3000; //высота крыши до конька
             string wallBaseLevelName = "Уровень 1"; // наименование базового уровня стен
             string wallTopConstraintLevelName = "Уровень 2"; // наименование уровня ограничивающего высоту стен сверху
 
@@ -40,8 +41,11 @@ namespace CreationModelPlugin
             //Создание окон
             AddWindows(doc, walls.GetRange(1, 3), windowSillHeight);
 
-            //Создание крыши
-            AddRoof(doc, wallTopConstraintLevelName, walls, roofAngle);
+            //Создание крыши по контуру стен
+            //AddRoof(doc, wallTopConstraintLevelName, walls, roofAngle);
+
+            //Создание крыши выдавливанием
+            AddExtrusionRoof(doc, wallTopConstraintLevelName, walls, roofHeight);
 
             #endregion
 
@@ -50,8 +54,50 @@ namespace CreationModelPlugin
 
 
 
-
         #region Методы построения
+
+        //Метод создания крыши выдавливанием
+        private void AddExtrusionRoof(Document doc, string levelName, List<Wall> walls, double roofHeight)
+        {
+            RoofType roofType = new FilteredElementCollector(doc)
+                .OfClass(typeof(RoofType))
+                .OfType<RoofType>()
+                .Where(x => x.Name.Equals("Типовой - 400мм"))
+                .Where(x => x.FamilyName.Equals("Базовая крыша"))
+                .FirstOrDefault();
+
+            Level level = GetLevelByName(doc, levelName);
+
+            roofHeight = UnitUtils.ConvertToInternalUnits(roofHeight, UnitTypeId.Millimeters);
+            double dt = walls[0].Width / 2;
+            List<XYZ> points = new List<XYZ>();
+            points.Add(new XYZ(-dt, -dt, 0));
+            points.Add(new XYZ(dt, -dt, 0));
+            points.Add(new XYZ(dt, dt, 0));
+            points.Add(new XYZ(-dt, dt, 0));
+
+            for (int i = 0; i < walls.Count; i++)
+            {
+                double extrusionLength = (walls[i].Location as LocationCurve).Curve.Length + 2 * dt;
+                int j = (i != 0) ? i - 1 : walls.Count - 1;
+                LocationCurve curve = walls[j].Location as LocationCurve;
+                XYZ point1 = (curve.Curve.GetEndPoint(1) + points[i] + new XYZ(0, 0, level.Elevation));
+                XYZ point3 = ((curve.Curve.GetEndPoint(0) + curve.Curve.GetEndPoint(1) + points[i] + points[j]) / 2 + new XYZ(0, 0, level.Elevation));
+                XYZ point2 = point3 + new XYZ(0, 0, roofHeight);
+
+                CurveArray curveArray = new CurveArray();
+                curveArray.Append(Line.CreateBound(point1, point2));
+
+                Transaction transaction = new Transaction(doc, "Create ExtrusionRoof");
+                transaction.Start();
+
+                ReferencePlane plane = doc.Create.NewReferencePlane2(point1, point2, point3, doc.ActiveView);
+                doc.Create.NewExtrusionRoof(curveArray, plane, level, roofType, -extrusionLength, 0).EaveCuts = EaveCutterType.TwoCutSquare;
+
+                transaction.Commit();
+            }
+        }
+
 
         //Метод создания крыши по контуру стен
         private void AddRoof(Document doc, string levelName, List<Wall> walls, double angle)
@@ -62,8 +108,9 @@ namespace CreationModelPlugin
                 .Where(x => x.Name.Equals("Типовой - 400мм"))
                 .Where(x => x.FamilyName.Equals("Базовая крыша"))
                 .FirstOrDefault();
+
             double slope = Math.Tan(angle * Math.PI / 180);
-            double dt = walls[0].Width/2;
+            double dt = walls[0].Width / 2;
             List<XYZ> points = new List<XYZ>();
             points.Add(new XYZ(-dt, -dt, 0));
             points.Add(new XYZ(dt, -dt, 0));
